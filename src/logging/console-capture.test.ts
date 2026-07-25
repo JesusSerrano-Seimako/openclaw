@@ -146,16 +146,16 @@ describe("enableConsoleCapture", () => {
     console.error = error;
     enableConsoleCapture();
 
-    console.trace("trace diagnostic");
+    console.trace("trace diagnostic\nsecond line");
 
     expect(error).toHaveBeenCalledTimes(1);
     const event = JSON.parse(firstMockArgAsString(error)) as Record<string, unknown>;
     expect(event).toMatchObject({ level: "trace" });
-    expect(event.message).toMatch(/^Trace: trace diagnostic\n/u);
-    expect(event.message).not.toContain('{"time"');
+    expect(event).toMatchObject({ message: "trace diagnostic\nsecond line" });
+    expect(event.stack).toMatch(/^Trace: trace diagnostic\nsecond line\n/u);
   });
 
-  it("keeps forced-stderr console trace output structured with its stack", () => {
+  it("keeps forced-stderr console trace output structured", () => {
     setLoggerOverride({ level: "info", consoleLevel: "trace", consoleStyle: "json" });
     const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     routeLogsToStderr();
@@ -166,7 +166,24 @@ describe("enableConsoleCapture", () => {
     expect(stderrWrite).toHaveBeenCalledTimes(1);
     const event = JSON.parse(firstMockArgAsString(stderrWrite)) as Record<string, unknown>;
     expect(event).toMatchObject({ level: "trace" });
-    expect(event.message).toMatch(/^Trace: trace diagnostic\n/u);
+    expect(event).toMatchObject({ message: "trace diagnostic" });
+    expect(event.stack).toMatch(/^Trace: trace diagnostic\n/u);
+  });
+
+  it("redacts credentials from structured console trace messages and stacks", () => {
+    setLoggerOverride({ level: "info", consoleLevel: "trace", consoleStyle: "json" });
+    const error = vi.fn();
+    console.error = error;
+    enableConsoleCapture();
+
+    console.trace(`Authorization: Bearer ${secret}`);
+
+    const written = firstMockArgAsString(error);
+    const event = JSON.parse(written) as Record<string, unknown>;
+    expect(event).toMatchObject({ level: "trace" });
+    expect(written).not.toContain(secret);
+    expect(String(event.message)).toContain("Authorization: Bearer");
+    expect(String(event.stack)).toContain("Authorization: Bearer");
   });
 
   it("wraps bracket-prefixed root fallback output when console style is JSON", () => {

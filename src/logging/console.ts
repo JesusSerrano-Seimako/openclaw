@@ -202,10 +202,20 @@ export function formatJsonConsoleLine(params: {
   );
 }
 
-function formatConsoleTrace(message: string, caller: (...args: unknown[]) => void): string {
-  const trace = { name: "Trace", message } as Error;
-  Error.captureStackTrace(trace, caller);
-  return trace.stack ?? `Trace: ${message}`;
+function captureConsoleTraceStack(
+  message: string,
+  caller: (...args: unknown[]) => void,
+): string {
+  const trace = new Error(message);
+  trace.name = "Trace";
+  // Node can exclude the console wrapper directly. Bun requires an Error instance and
+  // reliably excludes this helper, leaving the wrapper plus the user call site.
+  Error.captureStackTrace(trace, "bun" in process.versions ? captureConsoleTraceStack : caller);
+  return trace.stack === undefined
+    ? `Trace: ${message}`
+    : typeof trace.stack === "string"
+      ? trace.stack
+      : util.format(trace.stack);
 }
 
 function hasTimestampPrefix(value: string): boolean {
@@ -304,20 +314,18 @@ export function enableConsoleCapture(): void {
         // never block console output on logging failures
       }
       const jsonMessage =
-        consoleStyle === "json"
-          ? stripAnsi(
-              level === "trace"
-                ? formatConsoleTrace(formatted, forwardedConsoleCall)
-                : formatted,
-            )
-          : "";
+        consoleStyle === "json" ? stripAnsi(formatted) : "";
+      const jsonMeta =
+        consoleStyle === "json" && level === "trace"
+          ? { stack: stripAnsi(captureConsoleTraceStack(formatted, forwardedConsoleCall)) }
+          : undefined;
       if (loggingState.forceConsoleToStderr) {
         // In --json mode, all console.* writes are diagnostics and should stay off stdout.
         try {
           const redacted = redactSensitiveText(formatted);
           const line =
             consoleStyle === "json"
-              ? formatJsonConsoleLine({ level, message: jsonMessage })
+              ? formatJsonConsoleLine({ level, message: jsonMessage, meta: jsonMeta })
               : timestamp
                 ? `${timestamp} ${redacted}`
                 : redacted;
@@ -332,9 +340,9 @@ export function enableConsoleCapture(): void {
         try {
           const redacted = redactSensitiveText(formatted);
           if (consoleStyle === "json") {
-            const line = formatJsonConsoleLine({ level, message: jsonMessage });
-            // Node implements console.trace() through this.error(). Use the raw error sink so
-            // structured traces do not re-enter the patched console.error path as errors.
+            const line = formatJsonConsoleLine({ level, message: jsonMessage, meta: jsonMeta });
+            // Node and Bun implement console.trace() through this.error(). Use the raw error
+            // sink so the structured trace does not re-enter as an error.
             if (level === "trace") {
               original.error(line);
             } else {
