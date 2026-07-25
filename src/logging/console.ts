@@ -202,10 +202,7 @@ export function formatJsonConsoleLine(params: {
   );
 }
 
-function captureConsoleTraceStack(
-  message: string,
-  caller: (...args: unknown[]) => void,
-): string {
+function captureConsoleTraceStack(message: string, caller: (...args: unknown[]) => void): string {
   const trace = new Error(message);
   trace.name = "Trace";
   // An Error instance lets both Node and Bun exclude the console wrapper structurally.
@@ -312,8 +309,7 @@ export function enableConsoleCapture(): void {
       } catch {
         // never block console output on logging failures
       }
-      const jsonMessage =
-        consoleStyle === "json" ? stripAnsi(formatted) : "";
+      const jsonMessage = consoleStyle === "json" ? stripAnsi(formatted) : "";
       const jsonMeta =
         consoleStyle === "json" && level === "trace"
           ? { stack: stripAnsi(captureConsoleTraceStack(formatted, forwardedConsoleCall)) }
