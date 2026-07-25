@@ -185,12 +185,19 @@ export function formatConsoleTimestamp(style: ConsoleStyle): string {
   return formatTimestamp(now, { style: "long" });
 }
 
-function formatJsonConsolePassthrough(level: LogLevel, message: string): string {
+export function formatJsonConsoleLine(params: {
+  level: LogLevel;
+  message: string;
+  subsystem?: string;
+  meta?: Record<string, unknown>;
+}): string {
   return redactSensitiveText(
     JSON.stringify({
       time: formatConsoleTimestamp("json"),
-      level,
-      message: stripAnsi(message),
+      level: params.level,
+      ...(params.subsystem ? { subsystem: params.subsystem } : {}),
+      message: params.message,
+      ...params.meta,
     }),
   );
 }
@@ -297,7 +304,7 @@ export function enableConsoleCapture(): void {
           const redacted = redactSensitiveText(formatted);
           const line =
             consoleStyle === "json"
-              ? formatJsonConsolePassthrough(level, formatted)
+              ? formatJsonConsoleLine({ level, message: stripAnsi(formatted) })
               : timestamp
                 ? `${timestamp} ${redacted}`
                 : redacted;
@@ -312,7 +319,7 @@ export function enableConsoleCapture(): void {
         try {
           const redacted = redactSensitiveText(formatted);
           if (consoleStyle === "json") {
-            orig.call(console, formatJsonConsolePassthrough(level, formatted));
+            orig.call(console, formatJsonConsoleLine({ level, message: stripAnsi(formatted) }));
             return;
           }
           if (!timestamp) {

@@ -309,6 +309,32 @@ describe("createSubsystemLogger().isEnabled", () => {
     });
   });
 
+  it.each(["pretty", "compact"] as const)(
+    "keeps raw subsystem output unchanged in %s style",
+    (consoleStyle) => {
+      setLoggerOverride({ level: "silent", consoleLevel: "info", consoleStyle });
+      const logSpy = installConsoleMethodSpy("log");
+
+      createSubsystemLogger("gateway/auth").raw("raw diagnostic");
+
+      expect(logSpy).toHaveBeenCalledWith("raw diagnostic");
+    },
+  );
+
+  it("preserves structured subsystem fields through the shared JSON formatter", () => {
+    setLoggerOverride({ level: "silent", consoleLevel: "warn", consoleStyle: "json" });
+    const warn = installConsoleMethodSpy("warn");
+
+    createSubsystemLogger("gateway/auth").warn("authentication retry", { attempt: 2 });
+
+    expect(JSON.parse(firstMockArgAsString(warn))).toMatchObject({
+      level: "warn",
+      subsystem: "gateway/auth",
+      message: "authentication retry",
+      attempt: 2,
+    });
+  });
+
   it("keeps long-lived subsystem loggers on the current-day rolling file", () => {
     const logDir = path.dirname(logPathTracker.nextPath());
     const firstDay = path.join(logDir, "openclaw-2026-01-01.log");

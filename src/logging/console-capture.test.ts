@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { setVerbose } from "../global-state.js";
-import { logWarn } from "../logger.js";
+import { logError, logWarn } from "../logger.js";
 import {
   enableConsoleCapture,
   resetLogger,
@@ -139,6 +139,64 @@ describe("enableConsoleCapture", () => {
       message: "tool failed { attempt: 1 }",
     });
   });
+
+  it("wraps bracket-prefixed root fallback output when console style is JSON", () => {
+    setLoggerOverride({
+      level: "info",
+      file: tempLogPath(),
+      consoleLevel: "error",
+      consoleStyle: "json",
+    });
+    const error = vi.fn();
+    console.error = error;
+    enableConsoleCapture();
+
+    logError("[tools] exec failed");
+
+    expect(error).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(firstMockArgAsString(error))).toMatchObject({
+      level: "error",
+      message: "[tools] exec failed",
+    });
+  });
+
+  it.each(["pretty", "compact"] as const)(
+    "keeps %s console passthrough output unchanged",
+    (consoleStyle) => {
+      setLoggerOverride({
+        level: "info",
+        file: tempLogPath(),
+        consoleLevel: "info",
+        consoleStyle,
+      });
+      const warn = vi.fn();
+      console.warn = warn;
+      enableConsoleCapture();
+
+      console.warn("tool failed", { attempt: 1 });
+
+      expect(warn).toHaveBeenCalledWith("tool failed { attempt: 1 }");
+    },
+  );
+
+  it.each(["pretty", "compact"] as const)(
+    "keeps %s bracket-prefixed root fallback output unchanged",
+    (consoleStyle) => {
+      setLoggerOverride({
+        level: "info",
+        file: tempLogPath(),
+        consoleLevel: "error",
+        consoleStyle,
+      });
+      const error = vi.fn();
+      console.error = error;
+      enableConsoleCapture();
+
+      logError("[tools] exec failed");
+
+      expect(error).toHaveBeenCalledWith("[tools] exec failed");
+    },
+  );
 
   it("wraps forced stderr passthrough output when console style is JSON", () => {
     setLoggerOverride({ level: "info", consoleLevel: "error", consoleStyle: "json" });
