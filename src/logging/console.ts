@@ -202,6 +202,12 @@ export function formatJsonConsoleLine(params: {
   );
 }
 
+function formatConsoleTrace(message: string, caller: (...args: unknown[]) => void): string {
+  const trace = { name: "Trace", message } as Error;
+  Error.captureStackTrace(trace, caller);
+  return trace.stack ?? `Trace: ${message}`;
+}
+
 function hasTimestampPrefix(value: string): boolean {
   return /^(?:\d{2}:\d{2}:\d{2}|\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})?)/.test(
     value,
@@ -264,9 +270,8 @@ export function enableConsoleCapture(): void {
     error: original.error,
   };
 
-  const forward =
-    (level: LogLevel, orig: (...args: unknown[]) => void) =>
-    (...args: unknown[]) => {
+  const forward = (level: LogLevel, orig: (...args: unknown[]) => void) => {
+    const forwardedConsoleCall = (...args: unknown[]) => {
       const formatted = util.format(...args);
       if (shouldSuppressConsoleMessage(formatted)) {
         return;
@@ -298,13 +303,21 @@ export function enableConsoleCapture(): void {
       } catch {
         // never block console output on logging failures
       }
+      const jsonMessage =
+        consoleStyle === "json"
+          ? stripAnsi(
+              level === "trace"
+                ? formatConsoleTrace(formatted, forwardedConsoleCall)
+                : formatted,
+            )
+          : "";
       if (loggingState.forceConsoleToStderr) {
         // In --json mode, all console.* writes are diagnostics and should stay off stdout.
         try {
           const redacted = redactSensitiveText(formatted);
           const line =
             consoleStyle === "json"
-              ? formatJsonConsoleLine({ level, message: stripAnsi(formatted) })
+              ? formatJsonConsoleLine({ level, message: jsonMessage })
               : timestamp
                 ? `${timestamp} ${redacted}`
                 : redacted;
@@ -319,7 +332,14 @@ export function enableConsoleCapture(): void {
         try {
           const redacted = redactSensitiveText(formatted);
           if (consoleStyle === "json") {
-            orig.call(console, formatJsonConsoleLine({ level, message: stripAnsi(formatted) }));
+            const line = formatJsonConsoleLine({ level, message: jsonMessage });
+            // Node implements console.trace() through this.error(). Use the raw error sink so
+            // structured traces do not re-enter the patched console.error path as errors.
+            if (level === "trace") {
+              original.error(line);
+            } else {
+              orig.call(console, line);
+            }
             return;
           }
           if (!timestamp) {
@@ -339,6 +359,8 @@ export function enableConsoleCapture(): void {
         }
       }
     };
+    return forwardedConsoleCall;
+  };
 
   console.log = forward("info", original.log);
   console.info = forward("info", original.info);

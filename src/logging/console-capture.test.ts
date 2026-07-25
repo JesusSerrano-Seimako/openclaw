@@ -140,6 +140,35 @@ describe("enableConsoleCapture", () => {
     });
   });
 
+  it("keeps console trace output structured at trace level", () => {
+    setLoggerOverride({ level: "info", consoleLevel: "trace", consoleStyle: "json" });
+    const error = vi.fn();
+    console.error = error;
+    enableConsoleCapture();
+
+    console.trace("trace diagnostic");
+
+    expect(error).toHaveBeenCalledTimes(1);
+    const event = JSON.parse(firstMockArgAsString(error)) as Record<string, unknown>;
+    expect(event).toMatchObject({ level: "trace" });
+    expect(event.message).toMatch(/^Trace: trace diagnostic\n/u);
+    expect(event.message).not.toContain('{"time"');
+  });
+
+  it("keeps forced-stderr console trace output structured with its stack", () => {
+    setLoggerOverride({ level: "info", consoleLevel: "trace", consoleStyle: "json" });
+    const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+    routeLogsToStderr();
+    enableConsoleCapture();
+
+    console.trace("trace diagnostic");
+
+    expect(stderrWrite).toHaveBeenCalledTimes(1);
+    const event = JSON.parse(firstMockArgAsString(stderrWrite)) as Record<string, unknown>;
+    expect(event).toMatchObject({ level: "trace" });
+    expect(event.message).toMatch(/^Trace: trace diagnostic\n/u);
+  });
+
   it("wraps bracket-prefixed root fallback output when console style is JSON", () => {
     setLoggerOverride({
       level: "info",
