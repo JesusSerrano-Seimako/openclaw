@@ -147,7 +147,7 @@ function makeWhatsAppStructuredUserInput(text: string, mediaKind?: "sticker") {
     return makeUserInput(text);
   }
   const mediaContext = [
-    "WhatsApp media (untrusted metadata):",
+    "WhatsApp media: ⟦openclaw:ctx⟧",
     "```json",
     JSON.stringify({ source: "whatsapp", type: "media", payload: { kind: mediaKind } }),
     "```",
@@ -3483,7 +3483,7 @@ describe("qa mock openai server", () => {
         previousExactMarkerInput,
         makeUserInput(
           [
-            "Conversation info (untrusted metadata):",
+            "Conversation info: ⟦openclaw:ctx⟧",
             "```json",
             '{"inbound_event_kind":"user_request"}',
             "```",
@@ -3499,9 +3499,7 @@ describe("qa mock openai server", () => {
         setupInput,
         previousExactMarkerInput,
         makeUserInput(
-          ["Sender (untrusted metadata):", "```json", '{"name":"QA"}', "```", "", "<contact>"].join(
-            "\n",
-          ),
+          ["Sender: ⟦openclaw:ctx⟧", "```json", '{"name":"QA"}', "```", "", "<contact>"].join("\n"),
         ),
       ],
     });
@@ -3512,7 +3510,7 @@ describe("qa mock openai server", () => {
         previousExactMarkerInput,
         makeWhatsAppStructuredUserInput(
           [
-            "Conversation info (untrusted metadata):",
+            "Conversation info: ⟦openclaw:ctx⟧",
             "```json",
             '{"inbound_event_kind":"user_request"}',
             "```",
@@ -3664,7 +3662,7 @@ describe("qa mock openai server", () => {
         "Sticker note: <media:sticker>",
       ].join("\n"),
       [
-        "WhatsApp media (untrusted metadata):",
+        "WhatsApp media: ⟦openclaw:ctx⟧",
         "```json",
         '{"source":"whatsapp","type":"media","payload":{"kind":"image"}}',
         "```",
@@ -4375,7 +4373,7 @@ describe("qa mock openai server", () => {
           content: [
             {
               type: "input_text",
-              text: 'Conversation info (untrusted metadata): {"is_group_chat": true}\n\nhello team, no bot ping here',
+              text: 'Conversation info: ⟦openclaw:ctx⟧\n{"is_group_chat": true}\n\nhello team, no bot ping here',
             },
           ],
         },

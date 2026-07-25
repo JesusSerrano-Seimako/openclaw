@@ -229,16 +229,16 @@ This is the deterministic model-bound layer stack OpenClaw can snapshot for the 
     "roughTokens": 613
   },
   "totalTextOnly": {
-    "chars": 26566,
-    "roughTokens": 6642
+    "chars": 26560,
+    "roughTokens": 6640
   },
   "totalWithDynamicToolsJson": {
-    "chars": 85464,
-    "roughTokens": 21366
+    "chars": 85458,
+    "roughTokens": 21365
   },
   "userInputText": {
-    "chars": 1033,
-    "roughTokens": 259
+    "chars": 1027,
+    "roughTokens": 257
   }
 }
 ```
@@ -506,7 +506,7 @@ The following project context files have been loaded:
 <MEMORY.md contents will be here>
 
 Current user request:
-Conversation info (untrusted metadata):
+Conversation info: ⟦openclaw:ctx⟧
 ```json
 {
   "chat_id": "user:1000001",
