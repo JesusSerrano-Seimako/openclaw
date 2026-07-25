@@ -25,6 +25,7 @@ import {
 } from "../../../config/model-policy-allowlist-migration.js";
 import { isModelThinkingFormat, type ModelDefinitionConfig } from "../../../config/types.models.js";
 import { isBlockedObjectKey } from "../../../infra/prototype-keys.js";
+// Doctor intentionally reads shipped catalogs only; remote rows must not influence migrations.
 import { planManifestModelCatalogRows } from "../../../model-catalog/manifest-planner.js";
 import { listOpenClawPluginManifestMetadata } from "../../../plugins/manifest-metadata-scan.js";
 import {
