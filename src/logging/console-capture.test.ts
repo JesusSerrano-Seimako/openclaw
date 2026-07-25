@@ -4,6 +4,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { setVerbose } from "../global-state.js";
 import { logError, logWarn } from "../logger.js";
 import {
+  createSubsystemLogger,
   enableConsoleCapture,
   resetLogger,
   routeLogsToStderr,
@@ -137,6 +138,23 @@ describe("enableConsoleCapture", () => {
     expect(JSON.parse(firstMockArgAsString(warn))).toMatchObject({
       level: "warn",
       message: "tool failed { attempt: 1 }",
+    });
+  });
+
+  it("does not rewrap structured subsystem output", () => {
+    setLoggerOverride({ level: "info", consoleLevel: "warn", consoleStyle: "json" });
+    const warn = vi.fn();
+    console.warn = warn;
+    enableConsoleCapture();
+
+    createSubsystemLogger("gateway/auth").warn("authentication retry", { attempt: 2 });
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(JSON.parse(firstMockArgAsString(warn))).toMatchObject({
+      level: "warn",
+      subsystem: "gateway/auth",
+      message: "authentication retry",
+      attempt: 2,
     });
   });
 
