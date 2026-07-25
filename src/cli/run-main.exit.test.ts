@@ -463,7 +463,12 @@ describe("runCli exit behavior", () => {
     await runCli(["node", "openclaw", "status"]);
 
     expect(maybeRunCliInContainerMock).toHaveBeenCalledWith(["node", "openclaw", "status"]);
+    expect(enableConsoleCaptureMock).toHaveBeenCalledTimes(1);
     expect(tryRouteCliMock).toHaveBeenCalledWith(["node", "openclaw", "status"]);
+    const captureOrder = enableConsoleCaptureMock.mock.invocationCallOrder[0] ?? 0;
+    const routeOrder = tryRouteCliMock.mock.invocationCallOrder[0] ?? 0;
+    expect(captureOrder).toBeGreaterThan(0);
+    expect(routeOrder).toBeGreaterThan(captureOrder);
     expect(closeActiveMemorySearchManagersMock).not.toHaveBeenCalled();
     expect(disposeRegisteredAgentHarnessesMock).not.toHaveBeenCalled();
     expect(ensureTaskRegistryReadyMock).not.toHaveBeenCalled();

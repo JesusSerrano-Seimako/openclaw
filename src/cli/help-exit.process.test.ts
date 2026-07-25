@@ -24,7 +24,7 @@ const LAZY_GROUP_HELP_CASES = [
   { group: "update", usageCommand: "update" },
 ] as const;
 
-async function createHelpProcessFixture() {
+async function createHelpProcessFixture(config?: Record<string, unknown>) {
   const root = tempDirs.make("openclaw-help-exit-");
   const stateDir = path.join(root, "state");
   const configPath = path.join(stateDir, "openclaw.json");
@@ -33,7 +33,7 @@ async function createHelpProcessFixture() {
   await fs.mkdir(stateDir, { recursive: true });
   await fs.writeFile(
     configPath,
-    JSON.stringify({ plugins: { entries: { "oc-path": { enabled: true } } } }),
+    JSON.stringify(config ?? { plugins: { entries: { "oc-path": { enabled: true } } } }),
   );
   await fs.writeFile(
     tlsImportGuardPath,
@@ -54,10 +54,12 @@ registerHooks({
 
 async function runCliProcess(params: {
   args: string[];
+  config?: Record<string, unknown>;
+  env?: NodeJS.ProcessEnv;
   forbidTlsImport?: boolean;
   keepAlive?: boolean;
 }) {
-  const fixture = await createHelpProcessFixture();
+  const fixture = await createHelpProcessFixture(params.config);
   return await execFileAsync(
     process.execPath,
     [
@@ -83,11 +85,19 @@ async function runCliProcess(params: {
         OPENCLAW_NO_RESPAWN: "1",
         OPENCLAW_STATE_DIR: fixture.stateDir,
         VITEST: undefined,
+        ...params.env,
       },
       killSignal: "SIGKILL",
       timeout: CHILD_PROCESS_TIMEOUT_MS,
     },
   );
+}
+
+function parseJsonLines(stdout: string): Array<Record<string, unknown>> {
+  return stdout
+    .split(/\r?\n/u)
+    .filter(Boolean)
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
 }
 
 type CliProcessFailure = Error & {
@@ -136,5 +146,48 @@ describe("route-first CLI process rejection", () => {
 
     expect(failure.code).toBe(1);
     expect(failure.stderr).toContain(`does not recognize option "${option}"`);
+  });
+});
+
+describe("JSON console style process output", () => {
+  const loggingConfig = {
+    logging: {
+      consoleLevel: "info",
+      consoleStyle: "json",
+      level: "info",
+    },
+  };
+
+  it.each([
+    { name: "routed", env: {} },
+    { name: "Commander", env: { OPENCLAW_DISABLE_ROUTE_FIRST: "1" } },
+  ])("emits JSONL for $name text output", async ({ env }) => {
+    const result = await runCliProcess({
+      args: ["status", "--timeout", "1000"],
+      config: loggingConfig,
+      env,
+    });
+
+    const stdoutRecords = parseJsonLines(result.stdout);
+    const stderrRecords = parseJsonLines(result.stderr);
+    expect(stdoutRecords.length).toBeGreaterThan(0);
+    expect([...stdoutRecords, ...stderrRecords]).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ level: "info", message: "OpenClaw status" }),
+      ]),
+    );
+  });
+
+  it("keeps writeJson machine output as one raw object", async () => {
+    const result = await runCliProcess({
+      args: ["status", "--json", "--timeout", "1000"],
+      config: loggingConfig,
+    });
+
+    expect(result.stderr).toBe("");
+    const output = JSON.parse(result.stdout) as Record<string, unknown>;
+    expect(output).toHaveProperty("gateway");
+    expect(output).not.toHaveProperty("level");
+    expect(output).not.toHaveProperty("message");
   });
 });

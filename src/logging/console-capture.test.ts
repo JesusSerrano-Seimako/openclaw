@@ -259,8 +259,13 @@ describe("enableConsoleCapture", () => {
     expect(written).not.toContain(secret);
   });
 
-  it("keeps diagnostics on stderr while runtime JSON stays on stdout", () => {
-    setLoggerOverride({ level: "info", file: tempLogPath() });
+  it("keeps JSON diagnostics structured while runtime JSON stays raw", () => {
+    setLoggerOverride({
+      level: "info",
+      file: tempLogPath(),
+      consoleLevel: "info",
+      consoleStyle: "json",
+    });
     const stdoutWrite = vi.spyOn(process.stdout, "write").mockImplementation(() => true);
     const stderrWrite = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
     routeLogsToStderr();
@@ -269,7 +274,10 @@ describe("enableConsoleCapture", () => {
     console.log("diag");
     defaultRuntime.writeJson({ ok: true });
 
-    expect(stderrWrite).toHaveBeenCalledWith("diag\n");
+    expect(JSON.parse(firstMockArgAsString(stderrWrite))).toMatchObject({
+      level: "info",
+      message: "diag",
+    });
     expect(stdoutWrite).toHaveBeenCalledWith('{\n  "ok": true\n}\n');
   });
 

@@ -148,7 +148,6 @@ async function tryRunGatewayRunFastPath(
     { VERSION },
     { emitCliBanner },
     { resolveCliStartupPolicy },
-    { enableConsoleCapture },
     { ensureCliExecutionBootstrap },
     { defaultRuntime },
   ] = await startupTrace.measure("gateway-run-imports", () =>
@@ -158,7 +157,6 @@ async function tryRunGatewayRunFastPath(
       import("../version.js"),
       import("./banner.js"),
       import("./command-startup-policy.js"),
-      loadLoggingModule(),
       import("./command-execution-startup.js"),
       import("../runtime.js"),
     ]),
@@ -230,7 +228,6 @@ async function tryRunGatewayRunFastPath(
     gateway.command("run").description("Run the WebSocket Gateway (foreground)"),
     { beforeRun },
   );
-  enableConsoleCapture();
   try {
     await startupTrace.measure("gateway-run-parse", () => program.parseAsync(argv));
   } catch (error) {
@@ -1229,6 +1226,11 @@ export async function runCli(argv: string[] = process.argv) {
       }
     }
 
+    // Console formatting is a process-wide invariant. Install capture before
+    // gateway fast paths, routed commands, and Commander can diverge.
+    const { enableConsoleCapture } = await loadLoggingModule();
+    enableConsoleCapture();
+
     const shouldUseCliEnvProxy =
       !isHelpOrVersionInvocation && shouldStartProxyForCli(normalizedArgv);
     const bootstrapProxyBeforeFastPath =
@@ -1277,10 +1279,6 @@ export async function runCli(argv: string[] = process.argv) {
     };
 
     try {
-      // Capture all console output into structured logs while keeping stdout/stderr behavior.
-      const { enableConsoleCapture } = await loadLoggingModule();
-      enableConsoleCapture();
-
       const [
         { buildProgram },
         { formatUncaughtError },
