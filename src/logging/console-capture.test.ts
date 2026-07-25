@@ -153,6 +153,7 @@ describe("enableConsoleCapture", () => {
     expect(event).toMatchObject({ level: "trace" });
     expect(event).toMatchObject({ message: "trace diagnostic\nsecond line" });
     expect(event.stack).toMatch(/^Trace: trace diagnostic\nsecond line\n/u);
+    expect(String(event.stack)).not.toContain("forwardedConsoleCall");
   });
 
   it("keeps forced-stderr console trace output structured", () => {
