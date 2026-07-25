@@ -208,8 +208,7 @@ function captureConsoleTraceStack(
 ): string {
   const trace = new Error(message);
   trace.name = "Trace";
-  // Node can exclude the console wrapper directly. Bun requires an Error instance and
-  // reliably excludes this helper, leaving the wrapper plus the user call site.
+  // Bun needs an Error instance and filters from this helper; Node can exclude the wrapper.
   Error.captureStackTrace(trace, "bun" in process.versions ? captureConsoleTraceStack : caller);
   return trace.stack === undefined
     ? `Trace: ${message}`
